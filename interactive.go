@@ -16,7 +16,10 @@ var prompt string
 var readLine *readline.Instance
 var parser = shellwords.NewParser()
 
-var completer = readline.PcItemDynamic(listFiles(currentDir))
+var completer = readline.NewPrefixCompleter(
+	readline.PcItemDynamic(listFiles("/usr/bin")),
+	readline.PcItemDynamic(listFiles(currentDir)),
+)
 
 func filterInput(r rune) (rune, bool) {
 	switch r {
@@ -77,6 +80,9 @@ func interactive(ctx context.Context) (err error) {
 		}
 
 		cmds = AssemblePipes(cmds, nil, os.Stdout)
+		if cmds == nil {
+			continue
+		}
 
 		if err := ExecutePipes(cmds); err != nil {
 			fmt.Fprintf(os.Stderr, err.Error())
@@ -87,6 +93,9 @@ func interactive(ctx context.Context) (err error) {
 }
 
 func buildCommand(ctx context.Context, cmd []string) (*exec.Cmd, error) {
+	if len(cmd) == 0 {
+		return nil, nil
+	}
 	if isBuiltIn(cmd[0]) {
 		builtin := Builtins[cmd[0]]
 		return nil, builtin(ctx, cmd)

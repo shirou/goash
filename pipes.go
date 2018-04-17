@@ -8,6 +8,9 @@ import (
 // https://github.com/ebuchman/go-shell-pipes
 
 func AssemblePipes(cmds []*exec.Cmd, stdin io.Reader, stdout io.Writer) []*exec.Cmd {
+	if len(cmds) == 0 {
+		return nil
+	}
 	cmds[0].Stdin = stdin
 	cmds[0].Stderr = stdout
 	// assemble pipes
