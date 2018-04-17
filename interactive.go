@@ -2,9 +2,11 @@ package goash
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/chzyer/readline"
 	shellwords "github.com/mattn/go-shellwords"
@@ -55,39 +57,46 @@ func interactive(ctx context.Context) (err error) {
 			break
 		}
 
-		args, err := parser.Parse(line)
-		if err != nil {
-			PrintError(err)
-			continue
+		// split by pipe
+		cmds := make([]*exec.Cmd, 0)
+		for _, cmdStr := range strings.Split(line, "|") {
+			c, err := parser.Parse(cmdStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, err.Error())
+				continue
+			}
+			cmd, err := buildCommand(ctx, c)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, err.Error())
+				continue
+			}
+			if cmd == nil { // this is builtin
+				continue
+			}
+			cmds = append(cmds, cmd)
 		}
-		if err := execute(ctx, args); err != nil {
-			PrintError(err)
+
+		cmds = AssemblePipes(cmds, nil, os.Stdout)
+
+		if err := ExecutePipes(cmds); err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
 			continue
 		}
 	}
 	return nil
 }
 
-func execute(ctx context.Context, cmd []string) error {
-	if len(cmd) == 0 {
-		return nil
-	}
+func buildCommand(ctx context.Context, cmd []string) (*exec.Cmd, error) {
 	if isBuiltIn(cmd[0]) {
 		builtin := Builtins[cmd[0]]
-		return builtin(ctx, cmd)
-	} else {
-		bin, err := exec.LookPath(cmd[0])
-		if err != nil {
-			return err
-		}
-
-		cmd := exec.CommandContext(ctx, bin, cmd[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stdin = os.Stdin
-		cmd.Stderr = os.Stderr
-		return cmd.Run()
+		return nil, builtin(ctx, cmd)
 	}
-	return nil
+	bin, err := exec.LookPath(cmd[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return exec.CommandContext(ctx, bin, cmd[1:]...), nil
 }
 
 func isBuiltIn(cmd string) bool {

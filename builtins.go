@@ -23,8 +23,8 @@ func init() {
 		"getenv":   getenv,
 		"setenv":   setenv,
 		"unsetenv": unsetenv,
-		"fork":     fork,
-		"refresh":  refresh,
+		//		"fork":     fork,
+		"refresh": refresh,
 	}
 }
 
@@ -109,6 +109,12 @@ func fork(ctx context.Context, call []string) error {
 	if len(call) < 2 {
 		return errors.New("`fork <command...>`")
 	}
-	go execute(ctx, call[1:])
+	go func(ctx context.Context, call []string) {
+		cmd, err := buildCommand(ctx, call)
+		if err != nil || cmd == nil {
+			return
+		}
+		cmd.Start()
+	}(ctx, call)
 	return nil
 }
