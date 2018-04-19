@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -14,7 +15,7 @@ func init() {
 	}
 }
 
-func Main(call []string) error {
+func Main(stdout io.Writer, call []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
